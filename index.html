@@ -2152,8 +2152,8 @@ tr:hover td{background:var(--accS)}
    SUPABASE CONFIG
    Sostituisci con i tuoi valori da supabase.com
 ════════════════════════════════ */
-const SUPA_URL = 'https://ibdhbderkwlpwhzdpvvh.supabase.co';  
-const SUPA_KEY = 'sb_publishable_r10tTzlbw1T91DjkKRErFA_KhHcbTmx';  
+const SUPA_URL = '';  // es: https://xyzxyz.supabase.co
+const SUPA_KEY = '';  // anon/public key da Project Settings → API
 
 // Rilevamento modalità: online (Supabase) o locale (localStorage)
 const USE_SUPABASE = !!(SUPA_URL && SUPA_KEY);
@@ -2247,6 +2247,21 @@ function restoreSession() {
 }
 
 /* ── Supabase DB layer (sostituisce localStorage) ── */
+async function loadAllFromSupabase() {
+  try {
+    const [clients, camps, brand] = await Promise.all([
+      dbLoadClients(),
+      dbLoadCamps(),
+      dbLoadSettings(),
+    ]);
+    if (clients && clients.length) DB = clients;
+    if (camps   && camps.length)   CAMPS = camps;
+    if (brand)  { saveBrandDb(brand); applyBrand(); }
+  } catch(e) {
+    console.error('Supabase load error:', e);
+  }
+}
+
 async function dbLoadClients() {
   if (!USE_SUPABASE) return loadDB();
   try { return await supaFetch('clients','GET',null,'?order=id.asc&limit=10000'); }
