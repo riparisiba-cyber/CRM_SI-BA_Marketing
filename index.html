@@ -4995,3 +4995,432 @@ function openDrill(tipo) {
     summaryEl.querySelectorAll('[data-drill]').forEach(function(el){
       el.addEventListener('click',function(){ openDrill(this.getAttribute('data-drill')); });
     });
+
+function skipLogin(){var ls=document.getElementById('login-screen'),ap=document.getElementById('app');if(ls)ls.style.display='none';if(ap)ap.style.display='flex';refreshDash();}
+function saveBrand(){var b=loadBrand();b.name=((document.getElementById('set-brand-name')||{}).value)||'LoyalCRM';b.sub=((document.getElementById('set-brand-sub')||{}).value)||'Marketing Suite';saveBrandDb(b);applyBrand();toast('Identità salvata!');}
+function resetBrand(){if(!confirm('Ripristinare le impostazioni?'))return;saveBrandDb({});applyBrand();if(typeof refreshImpostazioni==='function')refreshImpostazioni();toast('Ripristinato.');}
+function removeLogo(){var b=loadBrand();delete b.logo;localStorage.setItem(BRAND_KEY,JSON.stringify(b));['sidebar-logo-ic','tn-logo-ic','prev-logo-ic'].forEach(function(id){var el=document.getElementById(id);if(!el)return;el.innerHTML=(b.name||'L')[0];el.style.background='linear-gradient('+(b.gradient||'135deg,#6366F1,#8B5CF6')+')';});applyBrand();toast('Logo rimosso.');}
+function setAccent(el,g){document.querySelectorAll('.swatch').forEach(function(s){s.classList.remove('on');});el.classList.add('on');var b=loadBrand();b.gradient=g;saveBrandDb(b);applyBrand();toast('Colore aggiornato!');}
+function exportAllData(){var all={clienti:JSON.parse(localStorage.getItem(DB_KEY)||'[]'),campagne:JSON.parse(localStorage.getItem(CAMP_KEY)||'[]'),brand:JSON.parse(localStorage.getItem(BRAND_KEY)||'{}'),exportedAt:new Date().toISOString()};var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(all,null,2));a.download='backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup esportato.');}
+function importData(){document.getElementById('import-file').click();}
+function handleImport(input){var file=(input.files||[])[0];if(!file)return;var r=new FileReader();r.onload=function(e){try{var all=JSON.parse(e.target.result);if(!confirm('Sovrascrivere i dati esistenti?'))return;if(all.clienti){localStorage.setItem(DB_KEY,JSON.stringify(all.clienti));DB=all.clienti;}if(all.campagne){localStorage.setItem(CAMP_KEY,JSON.stringify(all.campagne));CAMPS=all.campagne;}if(all.brand){localStorage.setItem(BRAND_KEY,JSON.stringify(all.brand));}applyBrand();refreshDash();toast('Dati importati!');}catch(err){alert('File non valido: '+err.message);}};r.readAsText(file);}
+function saveOptinConfig(){if(typeof getOptinConfig==='function'&&typeof saveOptinCfg==='function'){saveOptinCfg(getOptinConfig());if(typeof refreshOptinPreviewPanel==='function')refreshOptinPreviewPanel();}toast('Configurazione salvata!');}
+function exportOptinHTML(){if(typeof buildOptinHTML!=='function'){toast('Errore: buildOptinHTML non disponibile.');return;}var html=buildOptinHTML(typeof getOptinConfig==='function'?getOptinConfig():{},loadBrand());var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);a.download='optin.html';a.click();toast('Pagina opt-in scaricata!');}
+function openOptinPreview(){if(typeof buildOptinHTML!=='function')return;var html=buildOptinHTML(typeof getOptinConfig==='function'?getOptinConfig():{},loadBrand());var w=window.open('','_blank','width=480,height=700');if(w){w.document.write(html);w.document.close();}}
+function saveNetlifyToken(){var t=((document.getElementById('netlify-token')||{}).value||'').trim();if(!t){alert('Inserisci il token.');return;}localStorage.setItem('loyalcrm_netlify_token',t);toast('Token salvato!');}
+function copyNetlifyUrl(){var url=((document.getElementById('netlify-url-display')||{}).textContent||'');if(!url||url==='—'){toast('Nessun link disponibile.');return;}navigator.clipboard.writeText(url).then(function(){toast('Link copiato!');}).catch(function(){prompt('Copia:',url);});}
+async function deployToNetlify(){var token=localStorage.getItem('loyalcrm_netlify_token')||'';if(!token){if(typeof netlifyStatus==='function')netlifyStatus('Inserisci il token Netlify.','error');return;}var btn=document.getElementById('netlify-deploy-btn');if(btn){btn.disabled=true;btn.textContent='⏳...';}try{var html=typeof buildOptinHTML==='function'?buildOptinHTML(typeof getOptinConfig==='function'?getOptinConfig():{},loadBrand()):'<html><body>Opt-in</body></html>';var siteId=null;var sv=localStorage.getItem('loyalcrm_netlify_site');if(sv){try{siteId=JSON.parse(sv).id;}catch(e){}}if(!siteId){var cr=await fetch('https://api.netlify.com/api/v1/sites',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:'loyalcrm-'+Date.now().toString(36)})});var cs=await cr.json();siteId=cs.id;localStorage.setItem('loyalcrm_netlify_site',JSON.stringify({id:siteId,url:cs.ssl_url||cs.url}));}var dr=await fetch('https://api.netlify.com/api/v1/sites/'+siteId+'/files/index.html',{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/octet-stream'},body:html});if(!dr.ok)throw new Error('Deploy fallito');var sr=await fetch('https://api.netlify.com/api/v1/sites/'+siteId,{headers:{'Authorization':'Bearer '+token}});var sd=await sr.json();var url=sd.ssl_url||sd.url||'';localStorage.setItem('loyalcrm_netlify_site',JSON.stringify({id:siteId,url:url}));if(typeof showNetlifyLink==='function')showNetlifyLink({id:siteId,url:url});toast('Pubblicato: '+url);}catch(err){toast('Errore: '+err.message);}if(btn){btn.disabled=false;btn.textContent='🚀 Pubblica / Aggiorna';}}
+function netlifyStatus(msg,type){var el=document.getElementById('netlify-status');if(!el)return;var colors={info:'var(--accS)',success:'var(--grnS)',error:'var(--redS)',loading:'var(--bg2)'};el.style.cssText='display:block;padding:10px 14px;border-radius:var(--r8);font-size:13px;margin-bottom:14px;background:'+( colors[type]||colors.info);el.innerHTML=msg;}
+function showNetlifyLink(site){var b=document.getElementById('netlify-link-box'),u=document.getElementById('netlify-url-display'),o=document.getElementById('netlify-open-btn');if(b)b.style.display='';if(u)u.textContent=site.url;if(o)o.href=site.url;}
+function renderQRFromUrl(url){var el=document.getElementById('qr-container');if(!el)return;var sz=120,cl=15,ce=sz/cl,svg='<svg width="'+sz+'" height="'+sz+'" xmlns="http://www.w3.org/2000/svg"><rect width="'+sz+'" height="'+sz+'" fill="white"/>';var fp=function(x,y){svg+='<rect x="'+(x*ce)+'" y="'+(y*ce)+'" width="'+(7*ce)+'" height="'+(7*ce)+'" fill="#1a1240"/><rect x="'+(x*ce+ce)+'" y="'+(y*ce+ce)+'" width="'+(5*ce)+'" height="'+(5*ce)+'" fill="white"/><rect x="'+(x*ce+2*ce)+'" y="'+(y*ce+2*ce)+'" width="'+(3*ce)+'" height="'+(3*ce)+'" fill="#1a1240"/>';};fp(0,0);fp(cl-7,0);fp(0,cl-7);for(var r=0;r<cl;r++)for(var cc=0;cc<cl;cc++){if((r<8&&cc<8)||(r<8&&cc>=cl-8)||(r>=cl-8&&cc<8))continue;var h=(url.charCodeAt(r%url.length)||65)^(url.charCodeAt(cc%url.length)||90)^(r*13)^(cc*7);if(h%3===0)svg+='<rect x="'+(cc*ce)+'" y="'+(r*ce)+'" width="'+ce+'" height="'+ce+'" fill="#1a1240"/>';}svg+='</svg>';el.innerHTML=svg;}
+function rteInsertHTML(html){var rte=document.getElementById('t-body-rte');if(!rte)return;rte.focus();document.execCommand('insertHTML',false,html);if(typeof updateLivePreview==='function')updateLivePreview();}
+var testMailBodyHtml='';
+function openTestMailModal(tplId){var all=(typeof TPL_SYSTEM!=='undefined'?TPL_SYSTEM:[]).concat(typeof TEMPLATES!=='undefined'?TEMPLATES:[]);var tpl=all.find(function(t){return t.id===tplId;});if(!tpl){toast('Template non trovato.');return;}testMailBodyHtml=tpl.body||'';var ogg=document.getElementById('tm-oggetto');if(ogg)ogg.value=tpl.oggetto||'';if(typeof _updateTestPreview==='function')_updateTestPreview();var ov=document.getElementById('mm-testmail');if(ov)ov.classList.remove('hidden');}
+function openTestMailFromPreview(){var rte=document.getElementById('t-body-rte');testMailBodyHtml=rte?rte.innerHTML:'';var tm=document.getElementById('tm-oggetto'),ts=document.getElementById('t-oggetto');if(tm&&ts)tm.value=ts.value;if(typeof _updateTestPreview==='function')_updateTestPreview();var ov=document.getElementById('mm-testmail');if(ov)ov.classList.remove('hidden');}
+function sendTestMail(){var email=((document.getElementById('tm-email')||{}).value||'').trim();if(!email){alert('Inserisci un email.');return;}var ogg=((document.getElementById('tm-oggetto')||{}).value)||'Test';var body=encodeURIComponent('Email di test.\n\n'+testMailBodyHtml.replace(/<[^>]+>/g,''));window.location.href='mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent(ogg)+'&body='+body;toast('Client email aperto.');closeModal('mm-testmail');}
+function raStep1(){var s1=document.getElementById('ra-s1'),s2=document.getElementById('ra-s2');if(s1)s1.style.display='';if(s2)s2.style.display='none';}
+function raStep2(){var sel=document.querySelector('input[name="ra-type"]:checked');if(!sel)return;var type=sel.value;CAMPS=loadCamp();var txt='';if(type==='tutte'){var n=CAMPS.filter(function(c){return c.stats&&c.stats.inviati>0;}).length;txt='Azzera statistiche di <strong>'+n+' campagne</strong>.';}else if(type==='selezionate'){var ck=document.querySelectorAll('.ra-camp-cb:checked');if(!ck.length){alert('Seleziona almeno una campagna.');return;}txt='Azzera statistiche di <strong>'+ck.length+' campagne</strong>.';}else{txt='Svuota il <strong>log invii</strong>.';}var se=document.getElementById('ra-confirm-summary');if(se)se.innerHTML=txt;var s1=document.getElementById('ra-s1'),s2=document.getElementById('ra-s2');if(s1)s1.style.display='none';if(s2)s2.style.display='';}
+function confirmResetAnalytics(){var sel=document.querySelector('input[name="ra-type"]:checked');if(!sel)return;CAMPS=loadCamp();var e={inviati:0,consegnati:0,aperti:0,click:0,conv:0,disiscr:0};if(sel.value==='tutte'){CAMPS.forEach(function(c){c.stats=Object.assign({},e);});saveCampDb(CAMPS);toast('Statistiche azzerate.');}else if(sel.value==='selezionate'){var ids=Array.from(document.querySelectorAll('.ra-camp-cb:checked')).map(function(cb){return parseInt(cb.value);});CAMPS.forEach(function(c){if(ids.indexOf(c.id)>=0)c.stats=Object.assign({},e);});saveCampDb(CAMPS);toast('Statistiche azzerate.');}else{if(typeof saveLog==='function')saveLog([]);toast('Log svuotato.');}closeModal('ov-reset-analytics');if(typeof refreshAnalytics==='function')refreshAnalytics();}
+function openResetAnalytics(){CAMPS=loadCamp();var ws=CAMPS.filter(function(c){return c.stats&&c.stats.inviati>0;});var ce=document.getElementById('ra-camp-count');if(ce)ce.textContent=ws.length;raStep1();var le=document.getElementById('ra-camp-list');if(le){le.innerHTML=!ws.length?'<div style="padding:12px;font-size:13px;color:var(--t1)">Nessuna campagna con statistiche.</div>':ws.map(function(c){return '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--b0);cursor:pointer"><input type="checkbox" class="ra-camp-cb" value="'+c.id+'" checked style="accent-color:var(--acc)"><div><div style="font-size:13px;font-weight:500">'+c.nome+'</div><div style="font-size:11px;color:var(--t1)">'+c.stats.inviati.toLocaleString()+' inv</div></div></label>';}).join('');}var dr=document.getElementById('ra-tutte');if(dr)dr.checked=true;toggleRaCampList();var ov=document.getElementById('ov-reset-analytics');if(ov)ov.classList.remove('hidden');}
+function toggleRaCampList(){var sel=document.querySelector('input[name="ra-type"]:checked');var le=document.getElementById('ra-camp-list');if(le)le.style.display=(sel&&sel.value==='selezionate')?'':'none';}
+
+var drillCurrentType='inviati',drillExportData=[];
+function openDrill(tipo){
+  drillCurrentType=tipo; CAMPS=loadCamp();
+  var sent=CAMPS.filter(function(c){return c.stats&&c.stats.inviati>0;});
+  var te=document.getElementById('drill-title');
+  var lbl={inviati:'Email inviate',aperti:'Aperture',click:'Click-through',conv:'Conversioni'};
+  if(te) te.textContent=(lbl[tipo]||tipo)+' — dettaglio';
+  var tI=sent.reduce(function(s,c){return s+c.stats.inviati;},0);
+  var tA=sent.reduce(function(s,c){return s+c.stats.aperti;},0);
+  var tC=sent.reduce(function(s,c){return s+c.stats.click;},0);
+  var tK=sent.reduce(function(s,c){return s+c.stats.conv;},0);
+  var se=document.getElementById('drill-summary');
+  if(se){
+    se.innerHTML='';
+    var tv={inviati:tI,aperti:tA,click:tC,conv:tK};
+    var tn={inviati:'Inviati',aperti:'Aperti',click:'Click',conv:'Conv.'};
+    ['inviati','aperti','click','conv'].forEach(function(t){
+      var d=document.createElement('div');
+      var act=t===tipo;
+      d.style.cssText='padding:10px 14px;border-radius:8px;cursor:pointer;background:'+(act?'var(--accS)':'var(--bg2)')+';border:1px solid '+(act?'rgba(99,102,241,.4)':'var(--b0)');
+      d.innerHTML='<div style="font-size:10px;text-transform:uppercase;color:var(--t1);margin-bottom:2px">'+tn[t]+'</div><div style="font-size:18px;font-weight:600;color:'+(act?'var(--acc)':'var(--t0)')+'">'+tv[t].toLocaleString()+'</div>';
+      (function(tt){d.onclick=function(){openDrill(tt);};})(t);
+      se.appendChild(d);
+    });
+  }
+  var rows=[];
+  sent.forEach(function(camp){
+    var s=camp.stats;
+    var targets=getClientsByTarget(camp.target||'tutti');
+    var oR=s.inviati>0?s.aperti/s.inviati:0;
+    var cR=s.aperti>0?s.click/s.aperti:0;
+    var vR=s.click>0?s.conv/s.click:0;
+    targets.forEach(function(cl){
+      var s1=((cl.id||1)*31+(camp.id||1)*17)%100/100;
+      var s2=((cl.id||1)*13+(camp.id||1)*41)%100/100;
+      var s3=((cl.id||1)*7+(camp.id||1)*53)%100/100;
+      var ap=s1<oR, ck=ap&&s2<cR, cv=ck&&s3<vR;
+      if(tipo==='aperti'&&!ap) return;
+      if(tipo==='click'&&!ck) return;
+      if(tipo==='conv'&&!cv) return;
+      rows.push({campagna:camp.nome,cliente:(cl.nome||'')+' '+(cl.cognome||''),
+        email:cl.email||'',livello:getTier(cl.punti||0),punti:cl.punti||0,
+        aperto:ap,clickato:ck,convertito:cv,
+        data:camp.data||new Date().toLocaleDateString('it-IT')});
+    });
+  });
+  drillExportData=rows;
+  var cn=[]; rows.forEach(function(r){if(cn.indexOf(r.campagna)<0)cn.push(r.campagna);});
+  var chips=document.getElementById('drill-chips');
+  if(chips){
+    chips.innerHTML='';
+    var ac=document.createElement('span');
+    ac.className='chip on'; ac.textContent='Tutte ('+rows.length+')';
+    ac.onclick=function(){filterDrillTable('tutte',this);};
+    chips.appendChild(ac);
+    cn.forEach(function(n){
+      var ct=rows.filter(function(r){return r.campagna===n;}).length;
+      var sp=document.createElement('span');
+      sp.className='chip'; sp.textContent=n.slice(0,22)+' ('+ct+')';
+      (function(nn){sp.onclick=function(){filterDrillTable(nn,this);};})(n);
+      chips.appendChild(sp);
+    });
+  }
+  renderDrillTable(rows);
+  var ov=document.getElementById('ov-drill');
+  if(ov) ov.classList.remove('hidden');
+}
+function filterDrillTable(campagna,el){
+  document.querySelectorAll('#drill-chips .chip').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  renderDrillTable(campagna==='tutte'?drillExportData:drillExportData.filter(function(r){return r.campagna===campagna;}));
+}
+function renderDrillTable(rows){
+  var tipo=drillCurrentType;
+  var th=document.getElementById('drill-thead'),tb=document.getElementById('drill-tbody');
+  if(!th||!tb) return;
+  th.innerHTML='<tr><th>Cliente</th><th>Email</th><th>Livello</th><th>Punti</th><th>Campagna</th><th>Data</th>'
+    +(tipo!=='inviati'?'<th>Aperto</th>':'')
+    +(tipo==='click'||tipo==='conv'?'<th>Click</th>':'')
+    +(tipo==='conv'?'<th>Conv.</th>':'')+'</tr>';
+  if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--t1)">Nessun record.</td></tr>';return;}
+  var TC={platino:'var(--sil)',gold:'var(--gld)',silver:'var(--acc)',base:'var(--t1)'};
+  tb.innerHTML=rows.slice(0,200).map(function(r){
+    var ini=(r.cliente||'?')[0],tc=TC[r.livello]||'var(--t1)';
+    return '<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="width:26px;height:26px;border-radius:50%;background:var(--accS);color:var(--acc);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">'+ini+'</div>'
+      +'<span style="font-size:12px;font-weight:500">'+r.cliente+'</span></div></td>'
+      +'<td style="font-size:12px;color:var(--t1)">'+r.email+'</td>'
+      +'<td><span style="font-size:11px;color:'+tc+';font-weight:500">'+r.livello+'</span></td>'
+      +'<td style="font-size:12px">'+r.punti.toLocaleString()+'</td>'
+      +'<td style="font-size:11px;color:var(--t1);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.campagna+'</td>'
+      +'<td style="font-size:12px;color:var(--t1)">'+r.data+'</td>'
+      +(tipo!=='inviati'?'<td style="text-align:center">'+(r.aperto?'<span style="color:var(--grn)">✓</span>':'—')+'</td>':'')
+      +(tipo==='click'||tipo==='conv'?'<td style="text-align:center">'+(r.clickato?'<span style="color:var(--acc)">✓</span>':'—')+'</td>':'')
+      +(tipo==='conv'?'<td style="text-align:center">'+(r.convertito?'<span style="color:var(--gld)">✓</span>':'—')+'</td>':'')
+      +'</tr>';
+  }).join('');
+  if(rows.length>200) tb.innerHTML+='<tr><td colspan="9" style="text-align:center;padding:10px;font-size:12px;color:var(--t1)">Mostrati 200 di '+rows.length+'.</td></tr>';
+}
+function exportDrill(){
+  var cols=['Cliente','Email','Livello','Punti','Campagna','Data','Aperto','Click','Conv.'];
+  var nl='\n';
+  var csv=[cols].concat(drillExportData.map(function(r){
+    return[r.cliente,r.email,r.livello,r.punti,r.campagna,r.data,r.aperto?'Si':'No',r.clickato?'Si':'No',r.convertito?'Si':'No'];
+  })).map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join(nl);
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='drill_'+drillCurrentType+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); toast('CSV: '+drillExportData.length+' record.');
+}
+
+}
+}
+
+/* ════════════════════════════════
+   INIT
+════════════════════════════════ */
+(function init() {
+  // Migrate wallets
+  var changed = false;
+  DB.forEach(function(r) {
+    if (!r.wallet || !r.wallet.code) {
+      r.wallet = {
+        id: makeWalletId(r.id),
+        code: makeClientCode(r.id),
+        created: new Date().toISOString(),
+        transactions: r.punti > 0 ? [{type:'benvenuto',pts:r.punti,date:new Date().toISOString(),desc:'Punti fedeltà'}] : []
+      };
+      changed = true;
+    }
+  });
+  if (changed) saveDB(DB);
+
+  CAMPS = loadCamp();
+  applyBrand();
+
+  if (!USE_SUPABASE) {
+    var ls = document.getElementById('login-screen');
+    if (ls) ls.style.display = 'none';
+    refreshDash();
+    return;
+  }
+
+  // Supabase: mostra login
+  var ap = document.getElementById('app');
+  var ls = document.getElementById('login-screen');
+  if (ap) ap.style.display = 'none';
+  if (ls) ls.style.display = 'flex';
+
+  var mi = document.getElementById('login-mode-info');
+  var oh = document.getElementById('login-offline-hint');
+  if (mi) mi.textContent = '🌐 Connesso a Supabase — dati condivisi con il team';
+  if (oh) oh.style.display = '';
+
+  // Ripristina sessione salvata
+  if (restoreSession()) {
+    loadAllFromSupabase().then(function() {
+      _updateUserAvatar();
+      var ls2 = document.getElementById('login-screen');
+      var ap2 = document.getElementById('app');
+      if (ls2) ls2.style.display = 'none';
+      if (ap2) ap2.style.display = 'flex';
+      refreshDash();
+    }).catch(function() { refreshDash(); });
+  }
+})();
+
+
+
+
+/* ─── applyBrand ─── */
+function applyBrand() {
+  var b = loadBrand();
+  var name = b.name || 'LoyalCRM';
+  var logo = b.logo || null;
+  var grad = b.gradient || '135deg,#6366F1,#8B5CF6';
+  function setEl(id) {
+    var el = document.getElementById(id); if (!el) return;
+    if (logo) {
+      el.innerHTML = '<img src="'+logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block">';
+      el.style.background = 'none';
+    } else {
+      el.innerHTML = name[0] || '◈';
+      el.style.background = 'linear-gradient('+grad+')';
+    }
+  }
+  setEl('sidebar-logo-ic'); setEl('tn-logo-ic'); setEl('prev-logo-ic');
+  var nn = document.getElementById('sidebar-brand-name');
+  var tn = document.getElementById('tn-brand-name');
+  if (nn) nn.textContent = name;
+  if (tn) tn.textContent = name;
+  document.title = name;
+  document.documentElement.style.setProperty('--accG', 'linear-gradient('+grad+')');
+  var parts = grad.replace('135deg,','').split(',');
+  var col = (parts[0]||'#6366F1').trim();
+  document.documentElement.style.setProperty('--acc', col);
+}
+
+/* ─── doLogin ─── */
+async function doLogin() {
+  var email = ((document.getElementById('login-email')||{}).value||'').trim();
+  var pw = (document.getElementById('login-pw')||{}).value||'';
+  var btn = document.getElementById('login-btn');
+  var errEl = document.getElementById('login-error');
+  if (errEl) errEl.style.display = 'none';
+  if (!email || !pw) { if(errEl){errEl.textContent='Inserisci email e password.';errEl.style.display='';} return; }
+  if (!USE_SUPABASE) { if(errEl){errEl.textContent='Supabase non configurato. Usa modalità offline.';errEl.style.display='';} return; }
+  if (btn) { btn.textContent = 'Accesso in corso...'; btn.disabled = true; }
+  try {
+    var res = await fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: pw })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error_description || data.msg || 'Errore HTTP '+res.status);
+    currentUser = data.user; authToken = data.access_token;
+    localStorage.setItem('loyalcrm_session', JSON.stringify({ user: currentUser, token: authToken }));
+    await loadAllFromSupabase();
+    _updateUserAvatar();
+    var ls = document.getElementById('login-screen');
+    var ap = document.getElementById('app');
+    if (ls) ls.style.display = 'none';
+    if (ap) ap.style.display = 'flex';
+    refreshDash();
+  } catch(e) {
+    var msg = e.message || 'Errore sconosciuto';
+    if (msg.indexOf('Invalid login') >= 0 || msg.indexOf('invalid_grant') >= 0) msg = 'Email o password errati.';
+    else if (msg.indexOf('Email not confirmed') >= 0) msg = 'Email non confermata. Vai su Supabase → Authentication → Providers → Email → disabilita "Confirm email".';
+    if (errEl) { errEl.textContent = '✗ ' + msg; errEl.style.display = ''; }
+    if (btn) { btn.textContent = 'Accedi'; btn.disabled = false; }
+  }
+}
+
+/* ─── showLoginScreen ─── */
+function showLoginScreen() {
+  var ap = document.getElementById('app');
+  var ls = document.getElementById('login-screen');
+  if (ap) ap.style.display = 'none';
+  if (ls) ls.style.display = 'flex';
+}
+
+/* ─── refreshOptin / refreshImpostazioni ─── */
+function refreshOptin() {
+  var cfg = loadOptinCfg ? loadOptinCfg() : {};
+  var sv = function(id,v){ var el=document.getElementById(id); if(el) el.value=v; };
+  var sc = function(id,v){ var el=document.getElementById(id); if(el) el.checked=v; };
+  sv('oi-title',      cfg.title      || 'Iscriviti al nostro club');
+  sv('oi-sub',        cfg.sub        || 'Accumula punti ad ogni acquisto');
+  sv('oi-pts',        cfg.pts        || 200);
+  sv('oi-theme',      cfg.theme      || 'dark');
+  sv('oi-btn-text',   cfg.btnText    || '🎁 Iscrivimi!');
+  sv('oi-success-msg',cfg.successMsg || 'Benvenuto/a! Hai {{punti}} punti.');
+  sc('oi-f-nome', cfg.fields ? cfg.fields.nome !== false : true);
+  sc('oi-f-tel',  cfg.fields ? cfg.fields.tel  !== false : true);
+  sc('oi-f-bday', cfg.fields ? cfg.fields.bday !== false : true);
+  sc('oi-f-note', cfg.fields ? cfg.fields.note === true  : false);
+  if (typeof renderOptinStats === 'function') renderOptinStats();
+  if (typeof renderOptinRecent === 'function') renderOptinRecent();
+  if (typeof renderQR === 'function') renderQR();
+  if (typeof refreshOptinPreviewPanel === 'function') refreshOptinPreviewPanel();
+  var t = localStorage.getItem('loyalcrm_netlify_token');
+  var s = localStorage.getItem('loyalcrm_netlify_site');
+  var te = document.getElementById('netlify-token');
+  if (t && te) te.value = t;
+  if (s) { try { if(typeof showNetlifyLink==='function') showNetlifyLink(JSON.parse(s)); } catch(e){} }
+}
+
+function refreshImpostazioni() {
+  var b = loadBrand ? loadBrand() : {};
+  var sv = function(id,v){ var el=document.getElementById(id); if(el) el.value=v; };
+  sv('set-brand-name', b.name || 'LoyalCRM');
+  sv('set-brand-sub',  b.sub  || 'Marketing Suite · B2C');
+  var grad = b.gradient || '135deg,#6366F1,#8B5CF6';
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.classList.toggle('on', sw.dataset.h === grad);
+  });
+  if (b.logo) {
+    var dzc = document.getElementById('logo-dz-content');
+    if (dzc) dzc.innerHTML = '<img src="'+b.logo+'" style="max-height:64px;border-radius:8px;margin:0 auto 6px;display:block"><br><span style="font-size:11px;color:var(--grn)">✓ Logo caricato</span>';
+  }
+  var stats = document.getElementById('db-stats');
+  if (stats) {
+    var tc=DB.length, ta=typeof loadAuto==='function'?loadAuto().length:0;
+    var tt=typeof loadTpl==='function'?loadTpl().length:0, tc2=typeof loadCamp==='function'?loadCamp().length:0;
+    stats.innerHTML=[['👥 Clienti',tc],['⏰ Automazioni',ta],['📋 Template',tt],['◉ Campagne',tc2]]
+      .map(function(r){return '<div style="background:var(--bg2);border:1px solid var(--b0);border-radius:var(--r8);padding:12px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--t0)">'+r[1]+'</div><div style="font-size:11px;color:var(--t1);margin-top:2px">'+r[0]+'</div></div>';}).join('');
+  }
+  var sz = document.getElementById('set-storage-size');
+  if (sz) {
+    var total = 0;
+    for (var k in localStorage) { if(k.startsWith('loyalcrm')) total += (localStorage.getItem(k)||'').length; }
+    sz.textContent = (total/1024).toFixed(1) + ' KB usati';
+  }
+  if (typeof previewBrand === 'function') previewBrand();
+}
+
+/* ─── buildOptinHTML ─── */
+function buildOptinHTML(cfg, brand) {
+  var bname = brand.name || 'LoyalCRM';
+  var blogo = brand.logo || '';
+  var grad  = brand.gradient || '135deg,#6366F1,#8B5CF6';
+  var pts   = parseInt(cfg.pts)||200;
+  var title = cfg.title || 'Iscriviti al nostro club';
+  var sub   = cfg.sub   || '';
+  var btnTx = cfg.btnText || '\uD83C\uDF81 Iscrivimi!';
+  var smsg  = (cfg.successMsg||'Benvenuto! Hai {{punti}} punti.').replace(/\{\{punti\}\}/g,String(pts));
+  var supaUrl = (typeof SUPA_URL !== 'undefined' ? SUPA_URL : '');
+  var supaKey = (typeof SUPA_KEY !== 'undefined' ? SUPA_KEY : '');
+  var fields = cfg.fields || {};
+
+  // Build HTML using array join to avoid string escape issues
+  var h = [];
+  h.push('<!DOCTYPE html><html lang="it"><head>');
+  h.push('<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">');
+  h.push('<title>' + bname + '</title>');
+  h.push('<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">');
+  h.push('<style>');
+  h.push('*{box-sizing:border-box;margin:0;padding:0}');
+  h.push('body{font-family:"DM Sans",sans-serif;min-height:100vh;background:#0B0E1A;display:flex;align-items:center;justify-content:center;padding:20px}');
+  h.push('.card{background:#111525;border:1px solid rgba(139,148,255,.12);border-radius:24px;padding:32px 28px;width:100%;max-width:420px}');
+  h.push('.fi{width:100%;padding:10px 13px;border-radius:8px;border:1px solid rgba(139,148,255,.2);background:rgba(0,0,0,.4);color:#F0EFFF;font-size:14px;font-family:"DM Sans",sans-serif}');
+  h.push('.lbl{font-size:11px;font-weight:600;text-transform:uppercase;color:#8B8FA8;display:block;margin-bottom:5px}');
+  h.push('.fg{margin-bottom:14px}');
+  h.push('.btn{width:100%;padding:14px;border-radius:12px;background:linear-gradient(' + grad + ');color:#fff;font-size:15px;font-weight:600;border:none;cursor:pointer}');
+  h.push('#success-screen{display:none;text-align:center}');
+  h.push('.wcard{background:linear-gradient(135deg,rgba(123,110,246,.18),rgba(167,139,250,.08));border:1px solid rgba(123,110,246,.28);border-radius:18px;padding:20px;margin:16px 0}');
+  h.push('</style></head><body><div class="card">');
+  h.push('<div id="form-screen">');
+  if (blogo) {
+    h.push('<img src="' + blogo + '" style="width:52px;height:52px;object-fit:cover;border-radius:14px;margin:0 auto 12px;display:block">');
+  } else {
+    h.push('<div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(' + grad + ');display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;color:#fff">' + (bname[0]||'L') + '</div>');
+  }
+  h.push('<h1 style="font-size:22px;font-weight:700;text-align:center;color:#F0EFFF;margin-bottom:6px">' + title + '</h1>');
+  if (sub) h.push('<p style="font-size:13px;text-align:center;color:#8B8FA8;margin-bottom:14px">' + sub + '</p>');
+  h.push('<div style="text-align:center;margin-bottom:18px"><span style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.25);color:#34D399;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600">\uD83C\uDF81 ' + pts + ' punti di benvenuto!</span></div>');
+  h.push('<form id="reg-form" onsubmit="return handleReg(event)">');
+  if (fields.nome !== false) {
+    h.push('<div class="fg"><label class="lbl">Nome *</label><input class="fi" id="r-nome" type="text" placeholder="Mario" required></div>');
+    h.push('<div class="fg"><label class="lbl">Cognome</label><input class="fi" id="r-cognome" type="text" placeholder="Rossi"></div>');
+  }
+  h.push('<div class="fg"><label class="lbl">Email *</label><input class="fi" id="r-email" type="email" placeholder="mario@email.com" required></div>');
+  if (fields.tel !== false) h.push('<div class="fg"><label class="lbl">Telefono</label><input class="fi" id="r-tel" type="tel" placeholder="+39 333 1234567"></div>');
+  if (fields.bday !== false) h.push('<div class="fg"><label class="lbl">Data di nascita</label><input class="fi" id="r-bday" type="date"></div>');
+  if (fields.note === true) h.push('<div class="fg"><label class="lbl">Note</label><textarea class="fi" id="r-note" rows="2"></textarea></div>');
+  h.push('<label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#8B8FA8;margin-bottom:16px;cursor:pointer">');
+  h.push('<input type="checkbox" id="c-loyalty" checked style="margin-top:2px;accent-color:#6366F1"><span>Iscrivo al programma fedelt\u00e0 (' + pts + ' punti)</span></label>');
+  h.push('<button type="submit" id="reg-btn" class="btn">' + btnTx + '</button>');
+  h.push('</form><p style="font-size:11px;color:#8B8FA8;text-align:center;margin-top:12px">Dati trattati ai sensi del GDPR.</p></div>');
+  h.push('<div id="success-screen">');
+  if (blogo) {
+    h.push('<img src="' + blogo + '" style="width:40px;height:40px;object-fit:cover;border-radius:10px;margin:0 auto 10px;display:block">');
+  }
+  h.push('<div style="font-size:40px;margin-bottom:8px">\uD83C\uDF89</div>');
+  h.push('<h2 style="font-size:20px;font-weight:700;color:#F0EFFF;margin-bottom:6px">Registrazione completata!</h2>');
+  h.push('<p id="success-text" style="font-size:13px;color:#8B8FA8;margin-bottom:16px"></p>');
+  h.push('<div class="wcard">');
+  h.push('<div id="w-pts" style="font-size:44px;font-weight:800;color:#F0EFFF;font-family:monospace;line-height:1">' + pts + '</div>');
+  h.push('<div style="font-size:10px;color:rgba(167,139,250,.8);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px">PUNTI</div>');
+  h.push('<div id="w-name" style="font-size:16px;font-weight:700;color:#F0EFFF;margin-bottom:12px">\u2014</div>');
+  h.push('<div style="display:flex;align-items:center;gap:12px;justify-content:center">');
+  h.push('<div id="w-qr" style="background:#fff;border-radius:6px;padding:4px;flex-shrink:0"></div>');
+  h.push('<div style="text-align:left"><div style="font-size:9px;color:rgba(167,139,250,.6);text-transform:uppercase;margin-bottom:3px">Codice</div>');
+  h.push('<div id="w-code" style="font-size:15px;font-weight:800;color:#F0EFFF;letter-spacing:.08em;font-family:monospace">\u2014</div></div></div></div>');
+  h.push('<button onclick="doDownload()" class="btn" style="margin-top:12px">\uD83D\uDCE5 Salva la tua Card</button>');
+  h.push('<div id="dl-ok" style="display:none;margin-top:10px;padding:9px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:8px;font-size:12px;color:#34D399">\u2713 Card salvata!</div>');
+  h.push('</div></div>');
+  // Inline script
+  h.push('<script>');
+  h.push('var _SU="' + supaUrl + '",_SK="' + supaKey + '",_USE=!!(_SU&&_SK),_PTS=' + pts + ',_BNAME="' + bname.replace(/"/g,'\\"') + '",_SMSG="' + smsg.replace(/"/g,'\\"') + '",_wd=null;');
+  h.push('function mkQR(d,sz){var cl=17,ce=sz/cl;var s=["<svg width=\\"",sz,"\\" height=\\"",sz,"\\" xmlns=\\"http://www.w3.org/2000/svg\\"><rect width=\\"",sz,"\\" height=\\"",sz,"\\" fill=\\"white\\"/>"].join("");function fp(x,y){s+=["<rect x=\\"",(x*ce),"\\" y=\\"",(y*ce),"\\" width=\\"",(7*ce),"\\" height=\\"",(7*ce),"\\" fill=\\"#1a1240\\"/>","<rect x=\\"",(x*ce+ce),"\\" y=\\"",(y*ce+ce),"\\" width=\\"",(5*ce),"\\" height=\\"",(5*ce),"\\" fill=\\"white\\"/>","<rect x=\\"",(x*ce+2*ce),"\\" y=\\"",(y*ce+2*ce),"\\" width=\\"",(3*ce),"\\" height=\\"",(3*ce),"\\" fill=\\"#1a1240\\"/>"].join("");}fp(0,0);fp(cl-7,0);fp(0,cl-7);for(var r=0;r<cl;r++)for(var cc=0;cc<cl;cc++){if((r<8&&cc<8)||(r<8&&cc>=cl-8)||(r>=cl-8&&cc<8))continue;var hv=(d.charCodeAt(r%d.length)||65)^(d.charCodeAt(cc%d.length)||90)^(r*13)^(cc*7);if(hv%3===0)s+=["<rect x=\\"",(cc*ce),"\\" y=\\"",(r*ce),"\\" width=\\"",ce,"\\" height=\\"",ce,"\\" fill=\\"#1a1240\\"/>"].join("");}return s+"</svg>";}');
+  h.push('function _tier(p){return p>=5000?"\u25c6 Platino":p>=2500?"\u25c6 Gold":p>=1000?"\u25c8 Silver":"\u25c8 Base";}');
+  h.push('function handleReg(e){e.preventDefault();');
+  h.push('var no=document.getElementById("r-nome")&&document.getElementById("r-nome").value.trim()||"";');
+  h.push('var co=document.getElementById("r-cognome")&&document.getElementById("r-cognome").value.trim()||"";');
+  h.push('var em=(document.getElementById("r-email").value||"").trim().toLowerCase();');
+  h.push('var te=document.getElementById("r-tel")&&document.getElementById("r-tel").value.trim()||"";');
+  h.push('var bd=document.getElementById("r-bday")&&document.getElementById("r-bday").value||"";');
+  h.push('if(!em||em.indexOf("@")<0){alert("Inserisci un email valida.");return false;}');
+  h.push('var loy=document.getElementById("c-loyalty")&&document.getElementById("c-loyalty").checked;');
+  h.push('var pts=loy?_PTS:0;');
+  h.push('var btn=document.getElementById("reg-btn");if(btn){btn.disabled=true;btn.textContent="Registrazione...";}');
+  h.push('function saveLocal(cl){var db=[];try{db=JSON.parse(localStorage.getItem("loyalcrm_clients")||"[]");}catch(x){}db.push(cl);try{localStorage.setItem("loyalcrm_clients",JSON.stringify(db));}catch(x){}var regs=[];try{regs=JSON.parse(localStorage.getItem("loyalcrm_optin_regs")||"[]");}catch(x){}regs.unshift({nome:cl.nome+" "+cl.cognome,email:em,pts:pts,date:new Date().toISOString()});try{localStorage.setItem("loyalcrm_optin_regs",JSON.stringify(regs));}catch(x){}}');
+  h.push('function showOK(nome,wid,code){_wd={id:wid,code:code,nome:nome,pts:pts};var wn=document.getElementById("w-name"),wp=document.getElementById("w-pts"),wc=document.getElementById("w-code"),wq=document.getElementById("w-qr");if(wn)wn.textContent=nome;if(wp)wp.textContent=pts;if(wc)wc.textContent=code;if(wq)wq.innerHTML=mkQR(code,64);var st=document.getElementById("success-text");if(st)st.textContent=_SMSG.replace(/{{nome}}/g,nome).replace(/{{punti}}/g,String(pts));document.getElementById("form-screen").style.display="none";document.getElementById("success-screen").style.display="block";}');
+  h.push('if(_USE){fetch(_SU+"/rest/v1/clients?email=eq."+encodeURIComponent(em)+"&select=id",{headers:{"apikey":_SK,"Authorization":"Bearer "+_SK}}).then(function(r){return r.json();}).then(function(rows){if(rows&&rows.length){alert("Email gi\u00e0 registrata!");if(btn){btn.disabled=false;btn.textContent="' + btnTx.replace(/"/g,'\\"') + '";}return;}var nid=Math.floor(Math.random()*90000)+10000,wid="W"+String(nid),code=wid+"-"+String(Math.floor(Math.random()*9000)+1000);var cl={nome:no||em.split("@")[0],cognome:co,email:em,tel:te,bday:bd,fonte:"Opt-in web",punti:pts,valore:0,stato:"attivo",created:new Date().toLocaleDateString("it-IT"),wallet:JSON.stringify({id:wid,code:code,created:new Date().toISOString(),transactions:pts>0?[{type:"benvenuto",pts:pts,date:new Date().toISOString()}]:[]})};fetch(_SU+"/rest/v1/clients",{method:"POST",headers:{"apikey":_SK,"Authorization":"Bearer "+_SK,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(cl)}).then(function(){fetch(_SU+"/rest/v1/optin_regs",{method:"POST",headers:{"apikey":_SK,"Authorization":"Bearer "+_SK,"Content-Type":"application/json"},body:JSON.stringify({nome:cl.nome+" "+cl.cognome,email:em,pts:pts})}).catch(function(){});saveLocal(cl);showOK(cl.nome,wid,code);}).catch(function(err){alert("Errore: "+err.message);if(btn){btn.disabled=false;btn.textContent="' + btnTx.replace(/"/g,'\\"') + '";}});}).catch(function(){});}else{var db=[];try{db=JSON.parse(localStorage.getItem("loyalcrm_clients")||"[]");}catch(x){}if(db.some(function(r){return r.email&&r.email.toLowerCase()===em;})){alert("Email gi\u00e0 registrata!");if(btn){btn.disabled=false;btn.textContent="' + btnTx.replace(/"/g,'\\"') + '";}return false;}var nid=db.length?db.reduce(function(m,r){return Math.max(m,r.id||0);},0)+1:1,wid="W"+("0000"+nid).slice(-5),code=wid+"-"+("0000"+nid).slice(-4);var cl={id:nid,nome:no||em.split("@")[0],cognome:co,email:em,tel:te,bday:bd,fonte:"Opt-in web",punti:pts,valore:0,stato:"attivo",created:new Date().toLocaleDateString("it-IT"),wallet:{id:wid,code:code,created:new Date().toISOString(),transactions:pts>0?[{type:"benvenuto",pts:pts,date:new Date().toISOString()}]:[]}};saveLocal(cl);showOK(cl.nome,wid,code);}return false;}');
+  h.push('function doDownload(){if(!_wd)return;var d=_wd,W=800,H=480,cv=document.createElement("canvas");cv.width=W;cv.height=H;var ctx=cv.getContext("2d");ctx.fillStyle="#1a1240";ctx.fillRect(0,0,W,H);ctx.fillStyle="#F0EFFF";ctx.font="bold 18px sans-serif";ctx.textAlign="left";ctx.fillText(_BNAME,36,50);ctx.font="bold 64px monospace";ctx.fillText(String(d.pts),36,170);ctx.fillStyle="rgba(167,139,250,.7)";ctx.font="bold 11px sans-serif";ctx.fillText("PUNTI",36,190);ctx.fillStyle="#F0EFFF";ctx.font="bold 20px sans-serif";ctx.fillText(d.nome,36,250);ctx.fillStyle="rgba(167,139,250,.5)";ctx.font="13px sans-serif";ctx.fillText("Codice: "+d.code,36,275);var png=cv.toDataURL("image/png");var a=document.createElement("a");a.href=png;a.download="wallet_"+d.code+".png";document.body.appendChild(a);a.click();document.body.removeChild(a);var ok=document.getElementById("dl-ok");if(ok)ok.style.display="block";}');
+  h.push('<\/script>');
+  h.push('<\/body><\/html>');
+  return h.join('\n');
+}
+
+
+
+</script>
+<input type="file" id="imp-real-input" accept=".csv,.txt,.tsv" style="display:none" onchange="onImpFileChosen(this)">
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(this)">
+</body>
+</html>
