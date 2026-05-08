@@ -2152,8 +2152,8 @@ tr:hover td{background:var(--accS)}
    SUPABASE CONFIG
    Sostituisci con i tuoi valori da supabase.com
 ════════════════════════════════ */
-const SUPA_URL = 'https://ibdhbderkwlpwhzdpvvh.supabase.co';
-const SUPA_KEY = 'sb_publishable_r10tTzlbw1T91DjkKRErFA_KhHcbTmx';
+const SUPA_URL = 'https://ibdhbderkwlpwhzdpvvh.supabase.co'; 
+const SUPA_KEY = 'sb_publishable_r10tTzlbw1T91DjkKRErFA_KhHcbTmx'; 
 
 // Rilevamento modalità: online (Supabase) o locale (localStorage)
 const USE_SUPABASE = !!(SUPA_URL && SUPA_KEY);
@@ -2331,6 +2331,9 @@ const SAMPLE = [
   {id:11,nome:'Paolo',     cognome:'Ricci',      email:'p.ricci@email.com',    tel:'',                bday:'1991-02-11', fonte:'Sito web',     note:'',                        punti:80,   valore:45,   stato:'dormiente', created:'01/03/2026'},
   {id:12,nome:'Valentina', cognome:'Greco',      email:'v.greco@email.com',    tel:'+39 333 1212121', bday:'1983-10-07', fonte:'Fiera / Evento',note:'Top spender',           punti:5900, valore:4100, stato:'attivo',    created:'05/01/2026'},
 ];
+
+function loadBrand() { try { return JSON.parse(localStorage.getItem(BRAND_KEY)||'{}'); } catch(e){ return {}; } }
+function saveBrandDb(obj) { localStorage.setItem(BRAND_KEY, JSON.stringify(obj)); }
 
 function loadDB() {
   const raw = localStorage.getItem(DB_KEY);
