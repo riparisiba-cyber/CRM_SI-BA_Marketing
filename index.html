@@ -5575,14 +5575,42 @@ async function doLogin() {
   var errEl = document.getElementById('login-error');
   if (errEl) errEl.style.display = 'none';
   if (!email || !pw) { showLoginError('Inserisci email e password.'); return; }
+
+  // Verifica configurazione
+  if (!USE_SUPABASE) {
+    showLoginError('Supabase non configurato (SUPA_URL o SUPA_KEY vuoti). Usa "Continua in modalità offline".');
+    return;
+  }
+
   if (btn) { btn.textContent = 'Accesso in corso...'; btn.disabled = true; }
   try {
-    await supaLogin(email, pw);
+    // Chiamata diretta con log dettagliato
+    var res = await fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: pw })
+    });
+    var data = await res.json();
+    if (!res.ok) {
+      var msg = data.error_description || data.msg || data.message || data.error || ('Errore HTTP ' + res.status);
+      throw new Error(msg);
+    }
+    currentUser = data.user;
+    authToken   = data.access_token;
+    localStorage.setItem('loyalcrm_session', JSON.stringify({ user: currentUser, token: authToken }));
     await loadAllFromSupabase();
     _updateUserAvatar();
     _showApp();
   } catch(e) {
-    showLoginError(e.message || 'Email o password errati.');
+    var msg = e.message || 'Errore sconosciuto';
+    // Traduzione errori comuni
+    if (msg.indexOf('Invalid login') >= 0 || msg.indexOf('invalid_grant') >= 0)
+      msg = 'Email o password errati. Controlla le credenziali.';
+    else if (msg.indexOf('Email not confirmed') >= 0)
+      msg = 'Email non confermata. Vai su Supabase → Authentication → Users → clicca i 3 puntini → "Send confirmation email" oppure disabilita "Confirm email" in Authentication → Providers → Email.';
+    else if (msg.indexOf('Failed to fetch') >= 0)
+      msg = 'Impossibile contattare Supabase. Controlla la SUPA_URL nel file HTML.';
+    showLoginError('✗ ' + msg);
     if (btn) { btn.textContent = 'Accedi'; btn.disabled = false; }
   }
 }
