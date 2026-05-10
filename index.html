@@ -971,7 +971,6 @@ tr:hover td{background:var(--accS)}
               <span style="font-size:11px;opacity:.6">PNG, SVG, JPG — max 1MB · Consigliato 64×64px</span>
             </div>
           </div>
-          <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" onchange="handleLogoFile(this)">
           <div style="margin-top:8px;display:flex;gap:8px">
             <button class="btn btn-sm btn-gh" onclick="document.getElementById('logo-file-input').click()">📁 Scegli file</button>
             <button class="btn btn-sm btn-d" onclick="removeLogo()">✕ Rimuovi logo</button>
@@ -2152,8 +2151,8 @@ tr:hover td{background:var(--accS)}
    SUPABASE CONFIG
    Sostituisci con i tuoi valori da supabase.com
 ════════════════════════════════ */
-const SUPA_URL = 'https://ibdhbderkwlpwhzdpvvh.supabase.co'; 
-const SUPA_KEY = 'sb_publishable_r10tTzlbw1T91DjkKRErFA_KhHcbTmx'; 
+const SUPA_URL = 'https://ibdhbderkwlpwhzdpvvh.supabase.co';
+const SUPA_KEY = 'sb_publishable_r10tTzlbw1T91DjkKRErFA_KhHcbTmx';
 
 // Rilevamento modalità: online (Supabase) o locale (localStorage)
 const USE_SUPABASE = !!(SUPA_URL && SUPA_KEY);
@@ -5000,6 +4999,51 @@ function openDrill(tipo) {
     });
 
 function skipLogin(){var ls=document.getElementById('login-screen'),ap=document.getElementById('app');if(ls)ls.style.display='none';if(ap)ap.style.display='flex';refreshDash();}
+function handleLogoFile(input) {
+  var file = (input.files||[])[0];
+  if (!file) return;
+  if (file.size > 3*1024*1024) { alert('Logo troppo grande. Max 3MB.'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var src = e.target.result;
+    var img = document.createElement('img');
+    img.onload = function() {
+      try {
+        var MAX=300, w=img.width, h=img.height;
+        if (w>MAX||h>MAX) { var rt=Math.min(MAX/w,MAX/h); w=Math.round(w*rt); h=Math.round(h*rt); }
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        src=cv.toDataURL('image/jpeg',0.85);
+      } catch(ex){}
+      _saveAndApplyLogo(src);
+    };
+    img.onerror=function(){ _saveAndApplyLogo(src); };
+    img.src=src;
+  };
+  reader.onerror=function(){ alert('Errore lettura file.'); };
+  reader.readAsDataURL(file);
+}
+function handleLogoDrop(e) {
+  e.preventDefault();
+  var dz=document.getElementById('logo-drop-zone'); if(dz) dz.classList.remove('over');
+  var file=(e.dataTransfer.files||[])[0];
+  if(!file||!file.type.startsWith('image/')){ alert('Trascina solo file immagine.'); return; }
+  handleLogoFile({files:[file]});
+}
+function _saveAndApplyLogo(src) {
+  try {
+    var b=loadBrand(); b.logo=src;
+    localStorage.setItem(BRAND_KEY, JSON.stringify(b));
+  } catch(ex){ alert('Storage pieno. Usa un logo più piccolo.'); return; }
+  ['sidebar-logo-ic','tn-logo-ic','prev-logo-ic'].forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    el.innerHTML='<img src="'+src+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block">';
+    el.style.background='none'; el.style.padding='0';
+  });
+  var dzc=document.getElementById('logo-dz-content');
+  if(dzc) dzc.innerHTML='<img src="'+src+'" style="max-height:72px;border-radius:8px;margin:0 auto 8px;display:block"><span style="font-size:12px;color:var(--grn);font-weight:600">✓ Logo salvato</span>';
+  applyBrand(); toast('Logo salvato! ✓');
+}
 function saveBrand(){var b=loadBrand();b.name=((document.getElementById('set-brand-name')||{}).value)||'LoyalCRM';b.sub=((document.getElementById('set-brand-sub')||{}).value)||'Marketing Suite';saveBrandDb(b);applyBrand();toast('Identità salvata!');}
 function resetBrand(){if(!confirm('Ripristinare le impostazioni?'))return;saveBrandDb({});applyBrand();if(typeof refreshImpostazioni==='function')refreshImpostazioni();toast('Ripristinato.');}
 function removeLogo(){var b=loadBrand();delete b.logo;localStorage.setItem(BRAND_KEY,JSON.stringify(b));['sidebar-logo-ic','tn-logo-ic','prev-logo-ic'].forEach(function(id){var el=document.getElementById(id);if(!el)return;el.innerHTML=(b.name||'L')[0];el.style.background='linear-gradient('+(b.gradient||'135deg,#6366F1,#8B5CF6')+')';});applyBrand();toast('Logo rimosso.');}
@@ -5423,6 +5467,7 @@ function buildOptinHTML(cfg, brand) {
 
 
 </script>
+<input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="handleLogoFile(this)">
 <input type="file" id="imp-real-input" accept=".csv,.txt,.tsv" style="display:none" onchange="onImpFileChosen(this)">
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(this)">
 </body>
